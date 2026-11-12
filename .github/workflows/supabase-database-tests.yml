@@ -1,0 +1,74 @@
+name: Supabase Database Tests
+
+on:
+  pull_request:
+    paths: ["supabase/**", "scripts/**", ".github/workflows/supabase-database-tests.yml"]
+  push:
+    branches: [main]
+    paths: ["supabase/**", "scripts/**", ".github/workflows/supabase-database-tests.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rpc-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Every RPC the apps call must be defined by a migration. If the client repositories are
+      # private, add a CLIENT_REPO_TOKEN secret (read access to both); otherwise the default token is used.
+      - uses: actions/checkout@v4
+        with:
+          repository: MichaelCommitsAt3AM/NuvioDesktopButBetter
+          ref: feature/react-tauri-desktop-rewrite
+          path: clients/desktop
+          token: ${{ secrets.CLIENT_REPO_TOKEN || github.token }}
+          lfs: false
+      - uses: actions/checkout@v4
+        with:
+          repository: MichaelCommitsAt3AM/NuvioMobileButBetter
+          ref: cmp-rewrite
+          path: clients/mobile
+          token: ${{ secrets.CLIENT_REPO_TOKEN || github.token }}
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check client RPC migration coverage
+        run: |
+          python scripts/test_check_supabase_rpc_contracts.py
+          python scripts/test_prepare_supabase_upgrade_config.py
+          python scripts/check_supabase_rpc_contracts.py clients/desktop clients/mobile
+
+  fresh-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v2
+        with:
+          # Pinned deliberately: the CLI version selects the supabase/postgres image, whose default
+          # privileges decide whether the "anonymous clients cannot ..." pgTAP assertions hold.
+          # 2.115.0 is green; 2.116.0 grants anon EXECUTE by default and fails them.
+          version: 2.115.0
+          github-token: ${{ github.token }}
+      - name: Start Supabase and apply every migration
+        run: supabase start
+      - name: Run database contract tests
+        run: supabase test db
+      - name: Run PostgREST RPC smoke test
+        run: bash scripts/test-supabase-rpc-api.sh
+      - name: Stop database
+        if: always()
+        run: supabase stop --no-backup
+
+  upgrade-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.115.0
+          github-token: ${{ github.token }}
+      - name: Exercise migration over existing library data
+        run: bash scripts/test-supabase-migration-upgrade.sh
