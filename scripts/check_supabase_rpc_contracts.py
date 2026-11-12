@@ -21,20 +21,16 @@ PARTY_CALL = re.compile(r'\bcall(?:WithProfile)?\s*\(\s*"(watch_party_[^"]+)"')
 
 # RPCs that belong to an upstream feature this fork's Supabase backend does not host.
 # The client code is kept (to minimise merge friction on upstream syncs) but the feature is
-# gated off by ServerCapabilities (TV login, watch parties and media-server cloud sync).
+# gated off by ServerCapabilities (TV login and media-server cloud sync).
 # Re-home these into a migration and drop them from this set if that backend is ever built.
 UPSTREAM_ONLY_RPCS = {
     "start_device_login_session",
     "poll_tv_login_session",
-    # Watch parties and media-server cloud sync are gated by ServerCapabilities;
-    # this fork does not deploy these services. Local server connections still work.
+    # Media-server cloud sync is gated by ServerCapabilities; this backend does not deploy it.
+    # Local server connections still work. Watch parties are implemented in
+    # 20261113100000_watch_party.sql and are checked like every other RPC.
     "sync_pull_media_servers",
     "sync_push_media_servers",
-    "watch_party_create", "watch_party_join", "watch_party_preview",
-    "watch_party_heartbeat", "watch_party_update", "watch_party_leave",
-    "watch_party_end", "watch_party_set_host_only", "watch_party_remove_member",
-    "watch_party_clock", "watch_party_enabled",
-    "watch_party_link_profile", "watch_party_send_message", "watch_party_list_messages",
 }
 SQL_FUNCTION = re.compile(
     r"""\bcreate\s+(?:or\s+replace\s+)?function\s+public\.([a-zA-Z_][a-zA-Z0-9_]*)""",
