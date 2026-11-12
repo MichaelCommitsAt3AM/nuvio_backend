@@ -58,7 +58,7 @@ create table public.watch_party_members (
   display_name text not null,
   avatar_url text,
   avatar_color text,
-  joined_at timestamptz not null default now(),
+  joined_at timestamptz not null default clock_timestamp(),
   last_seen_at timestamptz not null default now(),
   left_at timestamptz,
   removed boolean not null default false,
@@ -122,12 +122,14 @@ exception when others then
 end; $$;
 
 create function public._wp_valid_media(p_media jsonb) returns boolean language sql immutable as $$
-  select p_media is not null
-    and jsonb_typeof(p_media) = 'object'
-    and length(p_media::text) <= 16384
-    and jsonb_typeof(p_media -> 'type') = 'string'
-    and jsonb_typeof(p_media -> 'meta_id') = 'string'
-    and jsonb_typeof(p_media -> 'meta_type') = 'string'
+  select coalesce(
+    p_media is not null
+      and jsonb_typeof(p_media) = 'object'
+      and length(p_media::text) <= 16384
+      and jsonb_typeof(p_media -> 'type') = 'string'
+      and jsonb_typeof(p_media -> 'meta_id') = 'string'
+      and jsonb_typeof(p_media -> 'meta_type') = 'string',
+    false)
 $$;
 
 -- Returns the playback object when it has the fields every client needs, otherwise null.

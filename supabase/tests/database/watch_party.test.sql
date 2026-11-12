@@ -136,7 +136,7 @@ begin
   assert (select ended_reason from public.watch_parties where id = pid) = 'empty', 'An empty party ends';
 
   -- creation rate limit
-  update public.watch_party_config set create_limit_per_hour = 2;
+  update public.watch_party_config set create_limit_per_hour = 3;
   assert public.watch_party_create('dev-1', 'Host', null, null, media) ->> 'error' is null, 'Creation within the limit';
   assert public.watch_party_create('dev-1', 'Host', null, null, media) ->> 'error' = 'rate_limited', 'Creation is rate limited';
   update public.watch_party_config set create_limit_per_hour = 10;
